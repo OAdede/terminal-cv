@@ -147,6 +147,13 @@ body {
     text-decoration: underline;
 }
 
+/* Banner ilk satırda: biraz daha büyük olsun */
+.terminal .row.out:first-child {
+    font-size: 18px;
+    letter-spacing: 0.5px;
+}
+
+
 .sr-only {
     position: absolute;
     width: 1px;
