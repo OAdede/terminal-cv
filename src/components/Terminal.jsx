@@ -451,7 +451,11 @@ export default function Terminal() {
             </div>
 
             <div ref={endRef} />
-            <div className="hint">İpucu: h • p • s • l • r • download • history • theme random • sound on</div>
+            <div className="hint" aria-hidden="true">
+                İpucu: <kbd>help</kbd> yaz → komutları gör. Örnekler:
+                <kbd>projects</kbd> • <kbd>skills</kbd> • <kbd>contact</kbd> • <kbd>cv</kbd> • <kbd>theme list</kbd>
+            </div>
+
         </div>
     );
 }
