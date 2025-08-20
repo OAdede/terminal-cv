@@ -1,10 +1,10 @@
-import React from "react";
-import Terminal from "./components/Terminal.jsx";
+import React, { useEffect } from "react";
+import Terminal from "./components/Terminal";
+import "./App.css";
 
 export default function App() {
-  return (
-    <div className="app">
-      <Terminal />
-    </div>
-  );
+  useEffect(() => {
+    document.title = "Ozan Ahmet Dede — Terminal CV";
+  }, []);
+  return <Terminal />;
 }
