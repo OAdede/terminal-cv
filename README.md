@@ -131,4 +131,4 @@ Repo **Settings → Social preview** kısmına 1200×630 bir görsel yükle.
 ## ✉️ İletişim
 - E-posta: **dedeozanahmet@gmail.com**
 - GitHub: **https://github.com/OAdede**
-- LinkedIn: (profil linkini ekle)
+- LinkedIn: **https://www.linkedin.com/in/ozanahmetdede**
