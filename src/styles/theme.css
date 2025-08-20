@@ -165,3 +165,25 @@ body {
     white-space: nowrap;
     border: 0;
 }
+
+/* Input içinde “ghost” öneri */
+.input-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 160px;
+}
+
+.ghost {
+    position: absolute;
+    inset: 0;
+    color: var(--muted);
+    opacity: .35;
+    pointer-events: none;
+    white-space: pre;
+}
+
+.input {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}

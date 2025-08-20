@@ -14,13 +14,28 @@ const THEME_CLASS = {
 };
 const COMMANDS = [
     "help", "about", "projects", "skills", "contact", "cv", "social",
-    "open", "copy", "theme", "accent", "prompt", "banner", "clear"
+    "open", "copy", "theme", "accent", "prompt", "banner", "clear",
+    "history", "download", "repo", "site", "version", "sound"
 ];
+const ALIASES = {
+    h: "help",
+    "?": "help",
+    p: "projects",
+    s: "skills",
+    c: "contact",
+    g: "open github",
+    l: "open linkedin",
+    r: "open repo",
+    cls: "clear",
+};
+
 const CV_URL = `${import.meta.env.BASE_URL}OzanAhmetDede-CV.pdf`;
 const OPEN = {
     github: "https://github.com/OAdede",
-    linkedin: "https://www.linkedin.com/in/<profilini-ekle>",
+    linkedin: "https://www.linkedin.com/in/ozanahmetdede",
     cv: CV_URL,
+    repo: "https://github.com/OAdede/terminal-cv",
+    site: "https://OAdede.github.io/terminal-cv/",
 };
 
 export default function Terminal() {
@@ -30,14 +45,20 @@ export default function Terminal() {
     const [accent, setAccent] = useState(() => localStorage.getItem("accent") || "");
     const [promptText, setPromptText] = useState(() => localStorage.getItem("prompt") || "ozan@cv:$");
     const [showBanner, setShowBanner] = useState(() => (localStorage.getItem("banner") ?? "on") !== "off");
-    const [cmdHistory, setCmdHistory] = useState([]);
+    const [sound, setSound] = useState(() => localStorage.getItem("sound") || "off");
+
+    const [cmdHistory, setCmdHistory] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("cmdHistory") || "[]"); }
+        catch { return []; }
+    });
     const [cmdIndex, setCmdIndex] = useState(-1);
 
     const inputRef = useRef(null);
     const boxRef = useRef(null);
     const endRef = useRef(null);
+    const audioCtxRef = useRef(null);
 
-    // Karşılama
+    // karşılama
     useEffect(() => {
         setHistory(h => {
             if (h.length) return h;
@@ -48,7 +69,7 @@ export default function Terminal() {
         });
     }, [showBanner]);
 
-    // Tema uygula
+    // tema
     useEffect(() => {
         const all = Object.values(THEME_CLASS).filter(Boolean);
         document.body.classList.remove(...all);
@@ -57,13 +78,13 @@ export default function Terminal() {
         localStorage.setItem("theme", theme);
     }, [theme]);
 
-    // Accent uygula
+    // accent
     useEffect(() => {
         if (accent) setAccentVar(accent);
         else resetAccentVar();
     }, [accent]);
 
-    // Odak + otomatik kaydırma
+    // odak + auto scroll
     useEffect(() => { inputRef.current?.focus(); }, []);
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [history]);
 
@@ -84,30 +105,61 @@ export default function Terminal() {
         localStorage.removeItem("accent");
     }
 
-    function run(raw) {
-        const line = raw.trim();
-        if (!line) return;
+    function saveCmdToHistory(line) {
+        setCmdHistory(prev => {
+            const next = [...prev, line];
+            localStorage.setItem("cmdHistory", JSON.stringify(next));
+            return next;
+        });
+    }
 
-        print(`$ ${line}`);
-        setCmdHistory(h => [...h, line]);
+    function beep(freq = 880, duration = 0.05) {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            const ctx = audioCtxRef.current || new Ctx();
+            audioCtxRef.current = ctx;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "square";
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.03, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + duration);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + duration);
+        } catch (e) { /* sessiz geç */ }
+    }
+
+    function run(raw) {
+        const original = raw.trim();
+        if (!original) return;
+
+        // alias genişletme
+        const expanded = ALIASES[original] ? ALIASES[original] : original;
+
+        print(`$ ${original}`);
+        saveCmdToHistory(original);
         setCmdIndex(-1);
 
-        const [cmd, ...args] = line.split(/\s+/);
+        const [cmd, ...args] = expanded.split(/\s+/);
         const c = cmd.toLowerCase();
 
         switch (c) {
             case "help": {
                 const sub = (args[0] || "").toLowerCase();
                 if (sub === "theme") {
-                    print("theme list → mevcut temalar", "theme <isim> → dark/amber/light/matrix/cyber/paper");
+                    print("theme list → mevcut temalar",
+                        "theme <isim> → dark/amber/light/matrix/cyber/paper",
+                        "theme random → rastgele tema");
                 } else if (sub === "accent") {
-                    print("accent #RRGGBB → vurgu rengini değiştir", "accent reset → temanın varsayılanına dön");
+                    print("accent #RRGGBB → vurgu rengini değiştir",
+                        "accent random → rastgele renk",
+                        "accent reset → temanın varsayılanına dön");
                 } else if (sub === "prompt") {
                     print('prompt set "<metin>" | prompt reset');
-                } else if (sub === "projects") {
-                    print("projects → hepsi | projects <isim> → tek proje");
-                } else if (sub === "skills") {
-                    print(`skills → hepsi | skills <kategori> → ${Object.keys(skills).join(", ")}`);
+                } else if (sub === "history") {
+                    print("history → tüm geçmiş", "history <n> → son n komut", "history clear → geçmişi sil");
+                } else if (sub === "sound") {
+                    print("sound on/off → sesli geri bildirim");
                 } else {
                     print(
                         "Komutlar:",
@@ -117,14 +169,18 @@ export default function Terminal() {
                         "  skills [kat]   → yetenekler",
                         "  contact        → iletişim",
                         "  social         → bağlantılar",
-                        "  open <hedef>   → github | linkedin | cv",
+                        "  open <hedef>   → github | linkedin | cv | repo | site",
                         "  copy email     → e-postayı panoya kopyala",
                         "  cv             → PDF CV aç",
-                        "  theme [x]      → tema seç (theme list)",
-                        "  accent #hex    → vurgu rengi",
+                        "  download       → PDF CV indir",
+                        "  history [n]    → komut geçmişi",
+                        "  theme [x]      → tema seç (theme list | theme random)",
+                        "  accent #hex    → vurgu rengi (accent random/reset)",
                         "  prompt set ... → prompt metni",
                         "  banner on/off  → ASCII başlığı aç/kapat",
-                        "  clear          → ekranı temizle"
+                        "  sound on/off   → tuşa basınca bip",
+                        "  clear          → ekranı temizle",
+                        "Alias: h=? help, p projects, s skills, c contact, g open github, l open linkedin, r open repo, cls clear"
                     );
                 }
                 break;
@@ -168,20 +224,27 @@ export default function Terminal() {
             }
 
             case "contact":
-                print("E-posta: dedeozanahmet@gmail.com", "GitHub : https://github.com/OAdede", "LinkedIn: (profil linkini ekle)");
+                print(
+                    "E-posta : dedeozanahmet@gmail.com",
+                    "GitHub  : https://github.com/OAdede",
+                    "LinkedIn: https://www.linkedin.com/in/ozanahmetdede"
+                );
                 break;
 
             case "social":
-                print("github  → open github", "linkedin → open linkedin");
+                print("github  → open github", "linkedin → open linkedin", "repo → open repo", "site → open site");
                 break;
 
             case "open": {
                 const key = (args[0] || "").toLowerCase();
                 const url = OPEN[key];
-                if (!url) print("Kullanım: open github | open linkedin | open cv");
+                if (!url) print("Kullanım: open github | open linkedin | open cv | open repo | open site");
                 else window.open(url, "_blank");
                 break;
             }
+
+            case "repo": window.open(OPEN.repo, "_blank"); break;
+            case "site": window.open(OPEN.site, "_blank"); break;
 
             case "copy": {
                 const what = (args[0] || "").toLowerCase();
@@ -194,22 +257,51 @@ export default function Terminal() {
                 break;
             }
 
-            case "cv":
-                window.open(CV_URL, "_blank");
+            case "cv": window.open(CV_URL, "_blank"); break;
+
+            case "download":
+            case "cv-download":
+            case "cvdl": {
+                const a = document.createElement("a");
+                a.href = CV_URL; a.download = "OzanAhmetDede-CV.pdf";
+                document.body.appendChild(a); a.click(); a.remove();
+                print("İndirme başlatıldı: OzanAhmetDede-CV.pdf");
                 break;
+            }
+
+            case "history": {
+                if (args[0] && args[0].toLowerCase() === "clear") {
+                    localStorage.removeItem("cmdHistory");
+                    setCmdHistory([]);
+                    print("Komut geçmişi temizlendi.");
+                    break;
+                }
+                const n = parseInt(args[0], 10);
+                const list = isNaN(n) ? cmdHistory : cmdHistory.slice(-n);
+                if (!list.length) { print("Henüz geçmiş yok."); break; }
+                list.forEach((cmd, i) => print(`${i + 1}. ${cmd}`));
+                break;
+            }
 
             case "theme": {
                 const t = (args[0] || "").toLowerCase();
                 if (t === "list" || !t) print(`Temalar: ${THEMES.join(", ")}`, `Mevcut: ${theme}`);
-                else if (THEMES.includes(t)) { setTheme(t); print(`Tema: ${t}`); }
-                else print("Kullanım: theme list | theme <dark|amber|light|matrix|cyber|paper>");
+                else if (t === "random") {
+                    const r = THEMES[Math.floor(Math.random() * THEMES.length)];
+                    setTheme(r); print(`Tema: ${r}`);
+                } else if (THEMES.includes(t)) { setTheme(t); print(`Tema: ${t}`); }
+                else print("Kullanım: theme list | theme random | theme <dark|amber|light|matrix|cyber|paper>");
                 break;
             }
 
             case "accent": {
                 const val = (args[0] || "").toLowerCase();
-                if (!val) { print("Kullanım: accent #RRGGBB | accent reset"); break; }
+                if (!val) { print("Kullanım: accent #RRGGBB | accent random | accent reset"); break; }
                 if (val === "reset") { setAccent(""); print("Accent resetlendi"); break; }
+                if (val === "random") {
+                    const hex = "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0");
+                    setAccent(hex); print(`Accent: ${hex}`); break;
+                }
                 const ok = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val);
                 if (!ok) { print("Geçersiz renk. Örnek: accent #00ff5a"); break; }
                 setAccent(val); print(`Accent: ${val}`);
@@ -238,12 +330,25 @@ export default function Terminal() {
                 break;
             }
 
+            case "sound": {
+                const sub = (args[0] || "").toLowerCase();
+                if (sub === "on") { setSound("on"); localStorage.setItem("sound", "on"); print("Sound: on"); }
+                else if (sub === "off") { setSound("off"); localStorage.setItem("sound", "off"); print("Sound: off"); }
+                else print("Kullanım: sound on | sound off");
+                break;
+            }
+
+            case "version":
+            case "ver":
+                print("Terminal CV v1.2.0 — React 19 + Vite 7");
+                break;
+
             case "clear":
                 setHistory([]);
                 break;
 
             default: {
-                const s = getSuggestions(line);
+                const s = getSuggestions(expanded);
                 if (s.length) print(`Bilinmeyen komut. Şunlar olabilir: ${s.join(", ")}`);
                 else print("Bilinmeyen komut. 'help' yazabilirsin.");
             }
@@ -257,11 +362,37 @@ export default function Terminal() {
         if (t.startsWith("skills ")) return Object.keys(skills).filter(x => x.startsWith(t.split(" ")[1] || ""));
         if (t.startsWith("projects ")) return projects.map(p => p.name.toLowerCase())
             .filter(n => n.startsWith(t.split(" ").slice(1).join(" ")));
-        return COMMANDS.filter(c => c.startsWith(t));
+        return COMMANDS.filter(c => c.startsWith(t)).concat(Object.keys(ALIASES).filter(a => a.startsWith(t)));
     }
 
+    // input içi “ghost” öneri
+    function getGhostText(text) {
+        if (!text) return "";
+        const s = getSuggestions(text);
+        if (!s.length) return "";
+        const suggest = s[0];
+        if (text.endsWith(" ")) return text + suggest;
+        const parts = text.split(/\s+/);
+        parts[parts.length - 1] = suggest;
+        return parts.join(" ");
+    }
+    const ghostText = getGhostText(input);
+
     function onKeyDown(e) {
-        if (e.key === "Enter") { run(input); setInput(""); return; }
+        // Ctrl+L = clear
+        if (e.ctrlKey && (e.key === "l" || e.key === "L")) {
+            e.preventDefault();
+            setHistory([]);
+            if (sound === "on") beep(520, 0.05);
+            return;
+        }
+
+        if (e.key === "Enter") {
+            if (sound === "on") beep(760, 0.05);
+            run(input);
+            setInput("");
+            return;
+        }
 
         if (e.key === "Tab") {
             e.preventDefault();
@@ -271,6 +402,7 @@ export default function Terminal() {
                 if (input.endsWith(" ")) setInput(input + s[0]);
                 else { parts[parts.length - 1] = s[0]; setInput(parts.join(" ")); }
             } else if (s.length > 1) { print(s.join("  ")); }
+            if (sound === "on") beep(520, 0.04);
             return;
         }
 
@@ -301,22 +433,25 @@ export default function Terminal() {
 
             <div className="row input-line" aria-live="polite">
                 <span className="prompt">{promptText}</span>
-                <input
-                    ref={inputRef}
-                    className="input"
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    spellCheck="false"
-                    autoCapitalize="off"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    placeholder="help"
-                />
+                <div className="input-wrap">
+                    <div className="ghost">{ghostText}</div>
+                    <input
+                        ref={inputRef}
+                        className="input"
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        spellCheck="false"
+                        autoCapitalize="off"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        placeholder="help"
+                    />
+                </div>
             </div>
 
             <div ref={endRef} />
-            <div className="hint">İpucu: theme list • accent #00ff5a • prompt set ozan@btk:$ • projects fitverse • open github</div>
+            <div className="hint">İpucu: h • p • s • l • r • download • history • theme random • sound on</div>
         </div>
     );
 }
