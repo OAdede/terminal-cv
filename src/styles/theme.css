@@ -187,3 +187,18 @@ body {
     z-index: 1;
     width: 100%;
 }
+
+.hint {
+    margin-top: 8px;
+    color: var(--muted);
+}
+
+.hint kbd {
+    display: inline-block;
+    padding: .15rem .45rem;
+    border: 1px solid var(--muted);
+    border-radius: .375rem;
+    background: color-mix(in srgb, var(--muted) 10%, transparent);
+    font-family: inherit;
+    font-size: .9em;
+}
